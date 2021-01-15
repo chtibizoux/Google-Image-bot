@@ -4,6 +4,9 @@ const request = require('request');
 const discord = require("discord.js");
 
 const bot = new discord.Client();
+if (!fs.existsSync("config.json")) {
+    console.error("Please create config.json file config.json.exemple is an exemple");
+}
 var config = JSON.parse(fs.readFileSync("./config.json", "utf8"));
 var guilds = JSON.parse(fs.readFileSync("./guilds.json", "utf8"));
 
