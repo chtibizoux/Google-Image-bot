@@ -1,6 +1,6 @@
 const fs = require("fs");
-const cheerio = require('cheerio');
-const request = require('request');
+// const cheerio = require('cheerio');
+const https = require('https')
 const discord = require("discord.js");
 
 const bot = new discord.Client();
@@ -58,31 +58,48 @@ function enable(message) {
 }
 
 function image(message) {
-    var search = message.content.slice(1);
+    var search = encodeURIComponent(message.content.slice(1));
     if (message.guild.id in guilds) {
         if (guilds[message.guild.id].includes(search)) {
             message.channel.send("Désoler cette recherche à été bloquer sur ce serveur");
             return;
         }
     }
-    var options = {
-        url: "https://results.dogpile.com/serp?qc=images&q=" + search,
-        method: "GET",
+    const options = {
+        hostname: 'api.qwant.com',
+        path: '/v3/search/images?count=1&q=' + search + '&t=' + search + '&f=&offset=0&locale=fr_fr&uiv=4',
         headers: {
-            "Accept": "text/html",
-            "User-Agent": "Chrome"
+            'User-Agent': "Mozilla/5.0 (Windows NT 6.3; WOW64; rv:56.0) Gecko/20100101 Firefox/56.0"
         }
     };
-    request(options, function(error, response, responseBody) {
-        if (error) return;
-        $ = cheerio.load(responseBody);
-        var links = $(".image a.link");
-        var urls = new Array(links.length).fill(0).map((v, i) => links.eq(i).attr("href"));
-        if (!urls.length) {
-            return;
-        }
-        message.channel.send(urls[0]);
+    var data = "";
+    https.get(options, res => {
+        res.on('data', chunk => {
+            data += chunk;
+        });
+        res.on('end', () => {
+            var jsonData = JSON.parse(data);
+            message.channel.send(jsonData.data.result.items[0].media);
+        });
+    }).on("error", (err) => {
+        console.log("Error: " + err.message);
     });
+    // https.get("https://www.google.com/search?q=" + search + "&tbm=isch", res => {
+    //     res.on('data', chunk => {
+    //         data += chunk;
+    //     });
+    //     res.on('end', () => {
+    //         console.log(data);
+    //         $ = cheerio.load(data);
+    //         var links = $(".t0fcAb");
+    //         var urls = new Array(links.length).fill(0).map((v, i) => links.eq(i).attr("src"));
+    //         if (!urls.length) {
+    //             return;
+    //         }
+    //         message.channel.send(urls[0]);
+    //     });
+    // }).on("error", (err) => {
+    //     console.log("Error: " + err.message);
+    // });
 }
-
 bot.login(config.token);
