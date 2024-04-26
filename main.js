@@ -1,105 +1,49 @@
-const fs = require("fs");
-// const cheerio = require('cheerio');
-const https = require('https')
-const discord = require("discord.js");
+import { Client, Collection } from "discord.js";
+import fs from "fs";
 
-const bot = new discord.Client();
-if (!fs.existsSync("config.json")) {
-    console.error("Please create config.json file config.json.exemple is an exemple");
-}
-var config = JSON.parse(fs.readFileSync("./config.json", "utf8"));
-var guilds = JSON.parse(fs.readFileSync("./guilds.json", "utf8"));
+const client = new Client({ intents: [] });
 
-bot.on('ready', () => {
-  console.log("This Bot is online!");
-  bot.user.setActivity("type §help");
-});
+// Register commands
+client.commands = new Collection();
 
-bot.on("message", (message) => {
-    if (message.content.startsWith("§")) {
-        if (message.content.startsWith("§help")) {
-          message.channel.send("`§image` Envoyer la première image quand on recherche *image* sur google\n`§disable image` suprimer la recherche *image*\n`§enable image` remettre accesible la recherche *image*");
-        }else if (message.content.startsWith("§enable")) {
-          enable(message);
-        }else if (message.content.startsWith("§disable")) {
-          disable(message);
-        }else {
-          image(message);
-        }
-    }
-});
+const commandsPath = "./commands";
+const commandFiles = fs.readdirSync(commandsPath);
 
-function disable(message) {
-    var search = message.content.slice(9);
-    if (message.guild.id in guilds) {
-        if (guilds[message.guild.id].includes(search)) {
-            message.channel.send("Erreur la recherche  `" + search + "` a déjà été supprimer");
-        }else {
-            guilds[message.guild.id].push(search);
-        }
-    }else {
-        guilds[message.guild.id] = [search];
-    }
-    fs.writeFileSync('./guilds.json', JSON.stringify(guilds));
+for (const file of commandFiles) {
+  const filePath = commandsPath + "/" + file;
+  const command = await import(filePath);
+  // Set a new item in the Collection with the key as the command name and the value as the exported module
+  if ("data" in command && "fromInteraction" in command && "fromMessage" in command) {
+    client.commands.set(command.data.name, command);
+  } else {
+    console.warn(`[WARNING] The command at ${filePath} is missing a required "data" or "execute" property.`);
+  }
 }
 
-function enable(message) {
-    var search = message.content.slice(8);
-    if (message.guild.id in guilds) {
-        if (guilds[message.guild.id].includes(search)) {
-            guilds[message.guild.id].splice(guilds[message.guild.id].indexOf(search), 1);
-        }else {
-            message.channel.send("Erreur vous n'avez pas supprimer la recherche `" + search + "`");
-        }
-    }else {
-        message.channel.send("Erreur vous n'avez supprimer aucune recherche");
+// Register events
+const eventsPath = "./events";
+const eventFiles = fs.readdirSync(eventsPath).filter((file) => file.endsWith(".js"));
+
+for (const file of eventFiles) {
+  const filePath = eventsPath + "/" + file;
+  const event = await import(filePath);
+  if ("name" in event && "execute" in event) {
+    if (event.once) {
+      client.once(event.name, (...args) => event.execute(...args));
+    } else {
+      client.on(event.name, (...args) => event.execute(...args));
     }
-    fs.writeFileSync('./guilds.json', JSON.stringify(guilds));
+  } else {
+    console.warn(`[WARNING] The event at ${filePath} is missing a required "name" or "execute" property.`);
+  }
 }
 
-function image(message) {
-    var search = encodeURIComponent(message.content.slice(1));
-    if (message.guild.id in guilds) {
-        if (guilds[message.guild.id].includes(search)) {
-            message.channel.send("Désoler cette recherche à été bloquer sur ce serveur");
-            return;
-        }
-    }
-    const options = {
-        hostname: 'api.qwant.com',
-        path: '/v3/search/images?count=1&q=' + search + '&t=' + search + '&f=&offset=0&locale=fr_fr&uiv=4',
-        headers: {
-            'User-Agent': "Mozilla/5.0 (Windows NT 6.3; WOW64; rv:56.0) Gecko/20100101 Firefox/56.0"
-        }
-    };
-    var data = "";
-    https.get(options, res => {
-        res.on('data', chunk => {
-            data += chunk;
-        });
-        res.on('end', () => {
-            var jsonData = JSON.parse(data);
-            message.channel.send(jsonData.data.result.items[0].media);
-        });
-    }).on("error", (err) => {
-        console.log("Error: " + err.message);
-    });
-    // https.get("https://www.google.com/search?q=" + search + "&tbm=isch", res => {
-    //     res.on('data', chunk => {
-    //         data += chunk;
-    //     });
-    //     res.on('end', () => {
-    //         console.log(data);
-    //         $ = cheerio.load(data);
-    //         var links = $(".t0fcAb");
-    //         var urls = new Array(links.length).fill(0).map((v, i) => links.eq(i).attr("src"));
-    //         if (!urls.length) {
-    //             return;
-    //         }
-    //         message.channel.send(urls[0]);
-    //     });
-    // }).on("error", (err) => {
-    //     console.log("Error: " + err.message);
-    // });
+// Register banned search
+if (!fs.existsSync("guilds.json")) {
+  fs.writeFileSync("./guilds.json", "[]");
 }
-bot.login(config.token);
+
+client.bannedSearch = JSON.parse(fs.readFileSync("./guilds.json", "utf8"));
+client.saveBannedSearch = () => fs.writeFileSync("./guilds.json", JSON.stringify(client.bannedSearch));
+
+client.login(process.env.TOKEN);

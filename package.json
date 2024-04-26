@@ -3,10 +3,17 @@
   "version": "1.0.0",
   "description": "A bot for Google Image.",
   "main": "main.js",
-  "author": "Clément Songis",
+  "type": "module",
+  "author": "Chtibizoux",
   "license": "ISC",
+  "scripts": {
+    "start": "node --env-file=.env main.js",
+    "deploy-commands": "node --env-file=.env deploy-commands.js"
+  },
   "dependencies": {
-    "discord": "^0.8.2",
-    "discord.js": "^12.1.1"
+    "discord.js": "^14.14.1"
+  },
+  "devDependencies": {
+    "eslint": "^9.1.1"
   }
 }
