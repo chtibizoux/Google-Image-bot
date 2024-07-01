@@ -1,4 +1,4 @@
-# Google Image Bot
+# Image Bot
 A discord bot for Google Image.
 
 Invite bot:
