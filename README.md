@@ -1,5 +1,5 @@
 # Image Bot
-A discord bot for Google Image.
+A discord bot that search images.
 
 Invite bot:
 
